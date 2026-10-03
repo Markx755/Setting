@@ -7,11 +7,6 @@ MARGIN="${4:-0}"
 settings put global enable_freeform_support 1
 settings put global force_resizable_activities 1
 
-resize_task() {
-  am task resize "$1" "$2" "$3" "$4" "$5" 2>/dev/null \
-    || cmd activity task resize "$1" "$2" "$3" "$4" "$5" 2>/dev/null
-}
-
 get_ids() {
   dumpsys activity activities 2>/dev/null \
     | grep -iE "Task(Record)?\{" | grep -i "$PATTERN" \
@@ -31,6 +26,7 @@ while true; do
     SIZE=$(wm size | tail -1 | sed 's/.*: //')
     W=${SIZE%x*}; H=${SIZE#*x}
     ROT=$(dumpsys window displays 2>/dev/null | grep -o 'rotation=[0-9]' | head -1 | cut -d= -f2)
+    echo "size=$SIZE rot=$ROT"
     if [ "$ROT" = "1" ] || [ "$ROT" = "3" ]; then T=$W; W=$H; H=$T; fi
     C=$COLS
     if [ "$C" -le 0 ]; then
@@ -43,10 +39,13 @@ while true; do
     for id in $IDS; do
       r=$((i / C)); c=$((i % C))
       L=$((c * CW + MARGIN)); T=$((r * CH + MARGIN))
-      resize_task "$id" "$L" "$T" $((L + CW - MARGIN)) $((T + CH - MARGIN))
+      OUT=$(am task resize "$id" "$L" "$T" $((L + CW - MARGIN)) $((T + CH - MARGIN)) 2>&1)
+      echo "task $id -> $L,$T,$((L + CW - MARGIN)),$((T + CH - MARGIN)) : $OUT"
       i=$((i + 1))
     done
-    echo "arranged $N windows ($C x $R) cell ${CW}x${CH}"
+    sleep 1
+    echo "--- bounds จริง ---"
+    dumpsys activity activities 2>/dev/null | grep -iE "Task(Record)?\{|mBounds|bounds=" | grep -iE -A1 "$PATTERN" | head -12
     LAST="$IDS"
   fi
   sleep "$INTERVAL"

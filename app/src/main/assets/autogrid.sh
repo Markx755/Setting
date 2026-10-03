@@ -14,7 +14,7 @@ resize_task() {
 
 get_ids() {
   dumpsys activity activities 2>/dev/null \
-    | grep -i "Task{" | grep -i "$PATTERN" \
+    | grep -iE "Task(Record)?\{" | grep -i "$PATTERN" \
     | sed -n 's/.*#\([0-9][0-9]*\).*/\1/p' | sort -un
 }
 
@@ -22,6 +22,11 @@ LAST=""
 while true; do
   IDS=$(get_ids | tr '\n' ' ')
   N=$(echo $IDS | wc -w)
+  if [ "$N" -eq 0 ] && [ "$LAST" != "none" ]; then
+    echo "no tasks matched '$PATTERN'"
+    dumpsys activity activities 2>/dev/null | grep -iE "Task(Record)?\{" | head -5
+    LAST="none"
+  fi
   if [ "$N" -gt 0 ] && [ "$IDS" != "$LAST" ]; then
     SIZE=$(wm size | tail -1 | sed 's/.*: //')
     W=${SIZE%x*}; H=${SIZE#*x}
